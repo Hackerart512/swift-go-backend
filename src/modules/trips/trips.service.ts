@@ -111,317 +111,123 @@ export class TripsService {
   }
 
   // ... (all other functions remain exactly the same) ...
-  // public async searchForAvailableTrips(
-  //   searchCriteria: SearchTripsDto,
-  // ): Promise<TripSearchResponseDto> {
-  //   this.logger.log(
-  //     `Starting trip search for type: ${searchCriteria.tripType}`,
-  //   );
-
-  //   const onwardTrips = await this.findAndFormatTripsForLeg(
-  //     searchCriteria.onward,
-  //   );
-
-  //   let returnTrips: TripSearchResultItem[] = [];
-
-  //   if (searchCriteria.tripType === 'roundtrip' && searchCriteria.return) {
-  //     this.logger.log(`Searching for return trips...`);
-  //     returnTrips = await this.findAndFormatTripsForLeg(searchCriteria.return);
-  //   }
-
-  //   return {
-  //     onwardTrips,
-  //     returnTrips,
-  //   };
-  // }
-
-  //   private async findAndFormatTripsForLeg(
-  //   legCriteria: TripLegSearchDto,
-  // ): Promise<TripSearchResultItem[]> {
-  //   const rawTrips = await this.findMatchingRawTrips(legCriteria);
-  //   this.logger.log(`Found ${rawTrips.length} potential raw trips for leg.`);
-
-  //   const formattedTrips = rawTrips
-  //     .map((trip): TripSearchResultItem | null => {
-  //       if (!trip.route || !trip.route.stops) {
-  //         this.logger.warn(`Trip ${trip.id} is missing route or stops data.`);
-  //         return null;
-  //       }
-
-  //       const originCoords = legCriteria.origin;
-  //       const destCoords = legCriteria.destination;
-
-  //       const pickupStop = this.findClosestStop(
-  //         trip.route.stops,
-  //         originCoords,
-  //         [StopType.PICKUP, StopType.PICKUP_DROPOFF],
-  //       );
-  //       const dropoffStop = this.findClosestStop(
-  //         trip.route.stops,
-  //         destCoords,
-  //         [StopType.DROPOFF, StopType.PICKUP_DROPOFF],
-  //       );
-
-  //       if (
-  //         !pickupStop ||
-  //         !dropoffStop ||
-  //         pickupStop.sequence >= dropoffStop.sequence
-  //       ) {
-  //         return null;
-  //       }
-
-  //       const departure = new Date(trip.departureDateTime);
-  //       const arrival = new Date(trip.estimatedArrivalDateTime);
-  //       const durationMins = differenceInMinutes(arrival, departure);
-  //       const hours = Math.floor(durationMins / 60);
-  //       const minutes = durationMins % 60;
-  //       const durationText = `${hours}h ${minutes}min`;
-
-  //       const allStops = [...trip.route.stops]
-  //         .sort((a, b) => a.sequence - b.sequence)
-  //         .map((stop) => ({
-  //           id: stop.id,
-  //           name: stop.name,
-  //           latitude: stop.location?.coordinates?.[1] || 0,
-  //           longitude: stop.location?.coordinates?.[0] || 0,
-  //           sequence: stop.sequence,
-  //           type: stop.type,
-  //         }));
-
-  //       return {
-  //         scheduledTripId: trip.id,
-  //         routeName: trip.route.name,
-  //         pickupStopId: pickupStop.id,
-  //         destinationStopId: dropoffStop.id,
-  //         pickupLocationName: pickupStop.name,
-  //         destinationLocationName: dropoffStop.name,
-  //         departureDateTime: trip.departureDateTime.toISOString(),
-  //         estimatedArrivalDateTime: trip.estimatedArrivalDateTime.toISOString(),
-  //         durationText: durationText,
-  //         price: parseFloat(trip.pricePerSeat as any),
-  //         currency: trip.currency,
-  //         availableSeats: trip.currentAvailableSeats,
-  //         vehicleInfo: {
-  //           type: trip.vehicle.vehicleType.name,
-  //           model: trip.vehicle.modelName || 'N/A',
-  //           registrationNumber: trip.vehicle.registrationNumber,
-  //         },
-  //         stops: allStops,
-  //       };
-  //     })
-  //     .filter((trip): trip is TripSearchResultItem => trip !== null);
-
-  //   this.logger.log(
-  //     `Returning ${formattedTrips.length} formatted trips for leg.`,
-  //   );
-  //   return formattedTrips;
-  // }
+  // 🔹 Main entry point
   public async searchForAvailableTrips(
-  searchCriteria: SearchTripsDto,
-): Promise<TripSearchResponseDto> {
-  this.logger.log(
-    `Starting trip search for type: ${searchCriteria.tripType}`,
-  );
+    searchCriteria: SearchTripsDto,
+  ): Promise<TripSearchResponseDto> {
+    this.logger.log(
+      `Starting trip search for type: ${searchCriteria.tripType}`,
+    );
 
-  const onwardTrips = await this.findAndFormatTripsForLeg(
-    searchCriteria.onward,
-  );
+    const onwardTrips = await this.findAndFormatTripsForLeg(
+      searchCriteria.onward,
+    );
 
-  let returnTrips: TripSearchResultItem[] = [];
-
-  if (searchCriteria.tripType === 'roundtrip' && searchCriteria.return) {
-    this.logger.log(`Searching for return trips...`);
-    returnTrips = await this.findAndFormatTripsForLeg(searchCriteria.return);
-  }
-
-  return {
-    onwardTrips,
-    returnTrips,
-  };
-}
-
- // 🔹 Main Search (Onward + Return)
-  async searchTrips(searchBody: {
-    tripType: 'oneway' | 'roundtrip';
-    onward: TripLegSearchDto;
-    return?: TripLegSearchDto;
-  }): Promise<{ onward: ScheduledTrip[]; return: ScheduledTrip[] }> {
-    const onwardTrips = await this.findMatchingRawTrips(searchBody.onward);
-
-    let returnTrips: ScheduledTrip[] = [];
-    if (searchBody.tripType === 'roundtrip' && searchBody.return) {
-      returnTrips = await this.findMatchingRawTrips(searchBody.return);
+    let returnTrips: TripSearchResultItem[] = [];
+    if (searchCriteria.tripType === 'roundtrip' && searchCriteria.return) {
+      this.logger.log(`Searching for return trips...`);
+      returnTrips = await this.findAndFormatTripsForLeg(searchCriteria.return);
     }
 
-    return { onward: onwardTrips, return: returnTrips };
-  }
-  
-private async findAndFormatTripsForLeg(
-  legCriteria: TripLegSearchDto,
-): Promise<TripSearchResultItem[]> {
-  const baseDate = new Date(legCriteria.date);
-  const allTrips: TripSearchResultItem[] = [];
-
-  // loop for 3 days (today + next 2 days)
-  for (let i = 0; i < 3; i++) {
-    const searchDate = new Date(baseDate);
-    searchDate.setDate(baseDate.getDate() + i);
-
-    this.logger.log(`Searching trips for ${searchDate.toISOString().split('T')[0]}`);
-
-    const rawTrips = await this.findMatchingRawTrips({
-      ...legCriteria,
-      date: searchDate.toISOString().split('T')[0], // only date part
-    });
-
-    this.logger.log(`Found ${rawTrips.length} potential raw trips for ${searchDate.toDateString()}`);
-
-    const formattedTrips = rawTrips
-      .map((trip): TripSearchResultItem | null => {
-        if (!trip.route || !trip.route.stops) {
-          this.logger.warn(`Trip ${trip.id} is missing route or stops data.`);
-          return null;
-        }
-
-        const pickupStop = this.findClosestStop(
-          trip.route.stops,
-          legCriteria.origin,
-          [StopType.PICKUP, StopType.PICKUP_DROPOFF],
-        );
-        const dropoffStop = this.findClosestStop(
-          trip.route.stops,
-          legCriteria.destination,
-          [StopType.DROPOFF, StopType.PICKUP_DROPOFF],
-        );
-
-        if (!pickupStop || !dropoffStop || pickupStop.sequence >= dropoffStop.sequence) {
-          return null;
-        }
-
-        // Ensure departure/arrival are Dates
-        const departure = new Date(trip.departureDateTime);
-        const arrival = new Date(trip.estimatedArrivalDateTime);
-
-        // Adjust times based on searchDate if needed (for recurring trips)
-        departure.setFullYear(searchDate.getFullYear(), searchDate.getMonth(), searchDate.getDate());
-        arrival.setFullYear(searchDate.getFullYear(), searchDate.getMonth(), searchDate.getDate());
-
-        const durationMins = differenceInMinutes(arrival, departure);
-        const durationText = `${Math.floor(durationMins / 60)}h ${durationMins % 60}min`;
-
-        const allStops = [...trip.route.stops]
-          .sort((a, b) => a.sequence - b.sequence)
-          .map((stop) => ({
-            id: stop.id,
-            name: stop.name,
-            latitude: stop.location?.coordinates?.[1] || 0,
-            longitude: stop.location?.coordinates?.[0] || 0,
-            sequence: stop.sequence,
-            type: stop.type,
-          }));
-
-        return {
-          scheduledTripId: trip.id,
-          routeName: trip.route.name,
-          pickupStopId: pickupStop.id,
-          destinationStopId: dropoffStop.id,
-          pickupLocationName: pickupStop.name,
-          destinationLocationName: dropoffStop.name,
-          departureDateTime: departure.toISOString(),
-          estimatedArrivalDateTime: arrival.toISOString(),
-          durationText,
-          price: Number(trip.pricePerSeat),
-          currency: trip.currency,
-          availableSeats: trip.currentAvailableSeats,
-          vehicleInfo: {
-            type: trip.vehicle.vehicleType?.name ?? "Unknown",
-            model: trip.vehicle.modelName || "N/A",
-            registrationNumber: trip.vehicle.registrationNumber,
-          },
-          stops: allStops,
-        };
-      })
-      .filter((trip): trip is TripSearchResultItem => trip !== null);
-
-    allTrips.push(...formattedTrips);
+    return {
+      onwardTrips,
+      returnTrips,
+    };
   }
 
-  this.logger.log(`Returning ${allTrips.length} total formatted trips for onward/return leg.`);
-  return allTrips;
-}
+  // 🔹 Find + format trips for a leg (supports 3-day window)
+  private async findAndFormatTripsForLeg(
+    legCriteria: TripLegSearchDto,
+  ): Promise<TripSearchResultItem[]> {
+    const baseDate = parseISO(legCriteria.date);
+    const allTrips: TripSearchResultItem[] = [];
 
+    // ✅ Loop over 3 days (today + next 2 days)
+    for (let i = 0; i < 3; i++) {
+      const searchDate = addDays(baseDate, i);
+      this.logger.log(`Searching trips for ${searchDate.toISOString().split('T')[0]}`);
 
+      const rawTrips = await this.findMatchingRawTrips({
+        ...legCriteria,
+        date: searchDate.toISOString().split('T')[0],
+      });
 
-  // private async findMatchingRawTrips(
-  //   legCriteria: TripLegSearchDto,
-  // ): Promise<ScheduledTrip[]> {
-  //   const qb = this.tripRepository.createQueryBuilder('trip');
+      this.logger.log(`Found ${rawTrips.length} raw trips for ${searchDate.toDateString()}`);
 
-  //   qb.innerJoinAndSelect('trip.route', 'route')
-  //     .innerJoinAndSelect('route.stops', 'route_stops')
-  //     .innerJoinAndSelect('trip.vehicle', 'vehicle')
-  //     .innerJoinAndSelect('vehicle.vehicleType', 'vehicleType')
-  //     .innerJoinAndSelect('trip.driver', 'driver');
+      const formattedTrips = rawTrips
+        .map((trip): TripSearchResultItem | null => {
+          if (!trip.route || !trip.route.stops) {
+            this.logger.warn(`Trip ${trip.id} is missing route or stops data.`);
+            return null;
+          }
 
-  //   qb.where('trip.isActive = :isActive', { isActive: true })
-  //     .andWhere('trip.status = :status', { status: 'scheduled' })
-  //     .andWhere('trip.currentAvailableSeats > 0');
+          const originCoords = legCriteria.origin;
+          const destCoords = legCriteria.destination;
 
-  //   if (legCriteria.date) {
-  //     const searchDate = parseISO(legCriteria.date);
-  //     const startDate = startOfDay(searchDate);
-  //     const endDate = endOfDay(searchDate);
-  //     qb.andWhere('trip.departureDateTime BETWEEN :startDate AND :endDate', {
-  //       startDate,
-  //       endDate,
-  //     });
-  //   } else {
-  //     qb.andWhere('trip.departureDateTime >= :now', { now: new Date() });
-  //   }
+          const pickupStop = this.findClosestStop(
+            trip.route.stops,
+            originCoords,
+            [StopType.PICKUP, StopType.PICKUP_DROPOFF],
+          );
+          const dropoffStop = this.findClosestStop(
+            trip.route.stops,
+            destCoords,
+            [StopType.DROPOFF, StopType.PICKUP_DROPOFF],
+          );
 
-  //   const origin = legCriteria.origin;
-  //   const destination = legCriteria.destination;
-  //   const searchRadiusInMeters = 5000;
+          if (!pickupStop || !dropoffStop || pickupStop.sequence >= dropoffStop.sequence) {
+            return null;
+          }
 
-  //   qb.andWhere(
-  //     'trip.routeId IN ' +
-  //       qb
-  //         .subQuery()
-  //         .select('stops.routeId')
-  //         .from(RouteStop, 'stops')
-  //         .where(
-  //           'ST_DWithin(stops.location, ST_SetSRID(ST_MakePoint(:originLng, :originLat), 4326)::geography, :radius)',
-  //           {
-  //             originLat: origin.latitude,
-  //             originLng: origin.longitude,
-  //             radius: searchRadiusInMeters,
-  //           },
-  //         )
-  //         .andWhere(
-  //           'stops.routeId IN ' +
-  //             qb
-  //               .subQuery()
-  //               .select('dest_stops.routeId')
-  //               .from(RouteStop, 'dest_stops')
-  //               .where(
-  //                 'ST_DWithin(dest_stops.location, ST_SetSRID(ST_MakePoint(:destLng, :destLat), 4326)::geography, :radius)',
-  //                 {
-  //                   destLat: destination.latitude,
-  //                   destLng: destination.longitude,
-  //                   radius: searchRadiusInMeters,
-  //                 },
-  //               )
-  //               .getQuery(),
-  //         )
-  //         .getQuery(),
-  //   );
+          const departure = new Date(trip.departureDateTime);
+          const arrival = new Date(trip.estimatedArrivalDateTime);
+          const durationMins = differenceInMinutes(arrival, departure);
+          const hours = Math.floor(durationMins / 60);
+          const minutes = durationMins % 60;
+          const durationText = `${hours}h ${minutes}min`;
 
-  //   qb.orderBy('trip.departureDateTime', 'ASC');
+          const allStops = [...trip.route.stops]
+            .sort((a, b) => a.sequence - b.sequence)
+            .map((stop) => ({
+              id: stop.id,
+              name: stop.name,
+              latitude: stop.location?.coordinates?.[1] || 0,
+              longitude: stop.location?.coordinates?.[0] || 0,
+              sequence: stop.sequence,
+              type: stop.type,
+            }));
 
-  //   return qb.getMany();
-  // }
+          return {
+            scheduledTripId: trip.id,
+            routeName: trip.route.name,
+            pickupStopId: pickupStop.id,
+            destinationStopId: dropoffStop.id,
+            pickupLocationName: pickupStop.name,
+            destinationLocationName: dropoffStop.name,
+            departureDateTime: trip.departureDateTime.toISOString(),
+            estimatedArrivalDateTime: trip.estimatedArrivalDateTime.toISOString(),
+            durationText: durationText,
+            price: parseFloat(trip.pricePerSeat as any),
+            currency: trip.currency,
+            availableSeats: trip.currentAvailableSeats,
+            vehicleInfo: {
+              type: trip.vehicle.vehicleType.name,
+              model: trip.vehicle.modelName || 'N/A',
+              registrationNumber: trip.vehicle.registrationNumber,
+            },
+            stops: allStops,
+          };
+        })
+        .filter((trip): trip is TripSearchResultItem => trip !== null);
 
-    // 🔹 Find trips matching a single leg (onward OR return)
+      allTrips.push(...formattedTrips);
+    }
+
+    this.logger.log(`Returning ${allTrips.length} formatted trips for leg.`);
+    return allTrips;
+  }
+
+  // 🔹 Query DB for raw trips
   private async findMatchingRawTrips(
     legCriteria: TripLegSearchDto,
   ): Promise<ScheduledTrip[]> {
@@ -433,12 +239,12 @@ private async findAndFormatTripsForLeg(
       .innerJoinAndSelect('vehicle.vehicleType', 'vehicleType')
       .innerJoinAndSelect('trip.driver', 'driver');
 
-    // ✅ Only active & available trips
+    // ✅ Active trips only
     qb.where('trip.isActive = :isActive', { isActive: true })
       .andWhere('trip.status = :status', { status: 'scheduled' })
       .andWhere('trip.currentAvailableSeats > 0');
 
-    // ✅ Filter by date (if given)
+    // ✅ Date filter
     if (legCriteria.date) {
       const searchDate = parseISO(legCriteria.date);
       const startDate = startOfDay(searchDate);
@@ -451,16 +257,14 @@ private async findAndFormatTripsForLeg(
       qb.andWhere('trip.departureDateTime >= :now', { now: new Date() });
     }
 
-    // ✅ Filter by AM / PM
-    if (legCriteria.timePeriod) {
-      if (legCriteria.timePeriod === 'AM') {
-        qb.andWhere(`EXTRACT(HOUR FROM trip.departureDateTime) BETWEEN 0 AND 11`);
-      } else if (legCriteria.timePeriod === 'PM') {
-        qb.andWhere(`EXTRACT(HOUR FROM trip.departureDateTime) BETWEEN 12 AND 23`);
-      }
+    // ✅ Time filter (optional)
+    if (legCriteria.timePeriod === 'AM') {
+      qb.andWhere(`EXTRACT(HOUR FROM trip.departureDateTime) BETWEEN 0 AND 11`);
+    } else if (legCriteria.timePeriod === 'PM') {
+      qb.andWhere(`EXTRACT(HOUR FROM trip.departureDateTime) BETWEEN 12 AND 23`);
     }
 
-    // ✅ Location filters (origin + destination within radius)
+    // ✅ Location filter
     const origin = legCriteria.origin;
     const destination = legCriteria.destination;
     const searchRadiusInMeters = 5000;
@@ -499,7 +303,6 @@ private async findAndFormatTripsForLeg(
     );
 
     qb.orderBy('trip.departureDateTime', 'ASC');
-
     return qb.getMany();
   }
 
@@ -634,37 +437,56 @@ private async findAndFormatTripsForLeg(
   }
   // ================== END OF NEW HELPER FUNCTION ==================
 
-  private findClosestStop(
-    stops: RouteStop[],
-    coords: { latitude: number; longitude: number },
-    allowedTypes: StopType[],
-  ): RouteStop | null {
-    let closestStop: RouteStop | null = null;
-    let minDistance = Infinity;
+ private findClosestStop(
+  stops: RouteStop[],
+  coords: { latitude: number; longitude: number },
+  allowedTypes: StopType[],
+): RouteStop | null {
+  let closestStop: RouteStop | null = null;
+  let minDistance = Infinity;
 
-    const distance = (
-      lat1: number,
-      lon1: number,
-      lat2: number,
-      lon2: number,
-    ) => {
-      const dLat = lat2 - lat1;
-      const dLon = lon2 - lon1;
-      return dLat * dLat + dLon * dLon;
-    };
+  const toRad = (value: number) => (value * Math.PI) / 180;
 
-    for (const stop of stops) {
-      if (allowedTypes.includes(stop.type) && stop.location?.coordinates) {
-        const [stopLon, stopLat] = stop.location.coordinates;
-        const d = distance(coords.latitude, coords.longitude, stopLat, stopLon);
-        if (d < minDistance) {
-          minDistance = d;
-          closestStop = stop;
-        }
+  const haversineDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ) => {
+    const R = 6371e3; // radius of Earth in meters
+    const φ1 = toRad(lat1);
+    const φ2 = toRad(lat2);
+    const Δφ = toRad(lat2 - lat1);
+    const Δλ = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) *
+      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // distance in meters
+  };
+
+  for (const stop of stops) {
+    if (allowedTypes.includes(stop.type) && stop.location?.coordinates) {
+      const [stopLon, stopLat] = stop.location.coordinates;
+      const d = haversineDistance(
+        coords.latitude,
+        coords.longitude,
+        stopLat,
+        stopLon,
+      );
+      if (d < minDistance) {
+        minDistance = d;
+        closestStop = stop;
       }
     }
-    return closestStop;
   }
+
+  return closestStop;
+}
+
 
   private async checkVehicleConflict(
     vehicleId: string,
