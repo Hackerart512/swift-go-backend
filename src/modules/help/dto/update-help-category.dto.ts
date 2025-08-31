@@ -1,0 +1,1 @@
+import { PartialType } from '@nestjs/mapped-types'; import { CreateHelpCategoryDto } from './create-help-category.dto'; export class UpdateHelpCategoryDto extends PartialType(CreateHelpCategoryDto) {}

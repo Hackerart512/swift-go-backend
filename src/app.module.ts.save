@@ -1,0 +1,60 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// src/app.module.ts
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+// import { KycModule } from './modules/kyc/kyc.module'; // If you create it
+import { SmsOtpModule } from './modules/smsotp/smsotp.module';
+import { FirebaseModule } from './common/firebase/firebase.module'; // Import FirebaseModule
+import { SuggestionsModule } from './modules/suggestions/suggestions.module';
+import { PromotionsModule } from './modules/promotions/promotions.module';
+import { SubscriptionPlansModule } from './modules/subscription-plans/subscription-plans.module';
+import { UserSubscriptionsModule } from './modules/user-subscriptions/user-subscriptions.module';
+import { RoutesModule } from './modules/routes/routes.module';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { TripsController } from './modules/trips/trips.controller';
+import { TripsModule } from './modules/trips/trips.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true, // Makes ConfigService available throughout the app
+      envFilePath: '.env',
+    }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get<string>('DB_HOST'),
+        port: parseInt(configService.get<string>('DB_PORT') ?? '5432', 10),
+        username: configService.get<string>('DB_USERNAME'),
+        password: configService.get<string>('DB_PASSWORD'),
+        database: configService.get<string>('DB_DATABASE'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'], // Important: path to your entities
+        synchronize: true, // true for dev (auto-creates schema), false for prod
+        logging: true,
+        ssl: {
+          rejectUnauthorized: false, // For debugging SQL queries
+        }, // For debugging SQL queries
+      }),
+      inject: [ConfigService],
+    }),
+    AuthModule,
+    UsersModule,
+    FirebaseModule,
+    SmsOtpModule,
+    SuggestionsModule,
+    PromotionsModule,
+    SubscriptionPlansModule,
+    UserSubscriptionsModule,
+    RoutesModule,
+    VehiclesModule,
+    TripsModule,
+    BookingsModule, // Import your SubscriptionPlansModule
+    // KycModule,
+  ],
+})
+export class AppModule {}
+
