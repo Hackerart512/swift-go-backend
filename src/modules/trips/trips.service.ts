@@ -111,35 +111,154 @@ export class TripsService {
   }
 
   // ... (all other functions remain exactly the same) ...
+  // public async searchForAvailableTrips(
+  //   searchCriteria: SearchTripsDto,
+  // ): Promise<TripSearchResponseDto> {
+  //   this.logger.log(
+  //     `Starting trip search for type: ${searchCriteria.tripType}`,
+  //   );
+
+  //   const onwardTrips = await this.findAndFormatTripsForLeg(
+  //     searchCriteria.onward,
+  //   );
+
+  //   let returnTrips: TripSearchResultItem[] = [];
+
+  //   if (searchCriteria.tripType === 'roundtrip' && searchCriteria.return) {
+  //     this.logger.log(`Searching for return trips...`);
+  //     returnTrips = await this.findAndFormatTripsForLeg(searchCriteria.return);
+  //   }
+
+  //   return {
+  //     onwardTrips,
+  //     returnTrips,
+  //   };
+  // }
+
+  //   private async findAndFormatTripsForLeg(
+  //   legCriteria: TripLegSearchDto,
+  // ): Promise<TripSearchResultItem[]> {
+  //   const rawTrips = await this.findMatchingRawTrips(legCriteria);
+  //   this.logger.log(`Found ${rawTrips.length} potential raw trips for leg.`);
+
+  //   const formattedTrips = rawTrips
+  //     .map((trip): TripSearchResultItem | null => {
+  //       if (!trip.route || !trip.route.stops) {
+  //         this.logger.warn(`Trip ${trip.id} is missing route or stops data.`);
+  //         return null;
+  //       }
+
+  //       const originCoords = legCriteria.origin;
+  //       const destCoords = legCriteria.destination;
+
+  //       const pickupStop = this.findClosestStop(
+  //         trip.route.stops,
+  //         originCoords,
+  //         [StopType.PICKUP, StopType.PICKUP_DROPOFF],
+  //       );
+  //       const dropoffStop = this.findClosestStop(
+  //         trip.route.stops,
+  //         destCoords,
+  //         [StopType.DROPOFF, StopType.PICKUP_DROPOFF],
+  //       );
+
+  //       if (
+  //         !pickupStop ||
+  //         !dropoffStop ||
+  //         pickupStop.sequence >= dropoffStop.sequence
+  //       ) {
+  //         return null;
+  //       }
+
+  //       const departure = new Date(trip.departureDateTime);
+  //       const arrival = new Date(trip.estimatedArrivalDateTime);
+  //       const durationMins = differenceInMinutes(arrival, departure);
+  //       const hours = Math.floor(durationMins / 60);
+  //       const minutes = durationMins % 60;
+  //       const durationText = `${hours}h ${minutes}min`;
+
+  //       const allStops = [...trip.route.stops]
+  //         .sort((a, b) => a.sequence - b.sequence)
+  //         .map((stop) => ({
+  //           id: stop.id,
+  //           name: stop.name,
+  //           latitude: stop.location?.coordinates?.[1] || 0,
+  //           longitude: stop.location?.coordinates?.[0] || 0,
+  //           sequence: stop.sequence,
+  //           type: stop.type,
+  //         }));
+
+  //       return {
+  //         scheduledTripId: trip.id,
+  //         routeName: trip.route.name,
+  //         pickupStopId: pickupStop.id,
+  //         destinationStopId: dropoffStop.id,
+  //         pickupLocationName: pickupStop.name,
+  //         destinationLocationName: dropoffStop.name,
+  //         departureDateTime: trip.departureDateTime.toISOString(),
+  //         estimatedArrivalDateTime: trip.estimatedArrivalDateTime.toISOString(),
+  //         durationText: durationText,
+  //         price: parseFloat(trip.pricePerSeat as any),
+  //         currency: trip.currency,
+  //         availableSeats: trip.currentAvailableSeats,
+  //         vehicleInfo: {
+  //           type: trip.vehicle.vehicleType.name,
+  //           model: trip.vehicle.modelName || 'N/A',
+  //           registrationNumber: trip.vehicle.registrationNumber,
+  //         },
+  //         stops: allStops,
+  //       };
+  //     })
+  //     .filter((trip): trip is TripSearchResultItem => trip !== null);
+
+  //   this.logger.log(
+  //     `Returning ${formattedTrips.length} formatted trips for leg.`,
+  //   );
+  //   return formattedTrips;
+  // }
   public async searchForAvailableTrips(
-    searchCriteria: SearchTripsDto,
-  ): Promise<TripSearchResponseDto> {
-    this.logger.log(
-      `Starting trip search for type: ${searchCriteria.tripType}`,
-    );
+  searchCriteria: SearchTripsDto,
+): Promise<TripSearchResponseDto> {
+  this.logger.log(
+    `Starting trip search for type: ${searchCriteria.tripType}`,
+  );
 
-    const onwardTrips = await this.findAndFormatTripsForLeg(
-      searchCriteria.onward,
-    );
+  const onwardTrips = await this.findAndFormatTripsForLeg(
+    searchCriteria.onward,
+  );
 
-    let returnTrips: TripSearchResultItem[] = [];
+  let returnTrips: TripSearchResultItem[] = [];
 
-    if (searchCriteria.tripType === 'roundtrip' && searchCriteria.return) {
-      this.logger.log(`Searching for return trips...`);
-      returnTrips = await this.findAndFormatTripsForLeg(searchCriteria.return);
-    }
-
-    return {
-      onwardTrips,
-      returnTrips,
-    };
+  if (searchCriteria.tripType === 'roundtrip' && searchCriteria.return) {
+    this.logger.log(`Searching for return trips...`);
+    returnTrips = await this.findAndFormatTripsForLeg(searchCriteria.return);
   }
 
-    private async findAndFormatTripsForLeg(
-    legCriteria: TripLegSearchDto,
-  ): Promise<TripSearchResultItem[]> {
-    const rawTrips = await this.findMatchingRawTrips(legCriteria);
-    this.logger.log(`Found ${rawTrips.length} potential raw trips for leg.`);
+  return {
+    onwardTrips,
+    returnTrips,
+  };
+}
+
+private async findAndFormatTripsForLeg(
+  legCriteria: TripLegSearchDto,
+): Promise<TripSearchResultItem[]> {
+  const baseDate = new Date(legCriteria.date);
+  const allTrips: TripSearchResultItem[] = [];
+
+  // loop for 3 days (today + next 2 days)
+  for (let i = 0; i < 3; i++) {
+    const searchDate = new Date(baseDate);
+    searchDate.setDate(baseDate.getDate() + i);
+
+    this.logger.log(`Searching trips for ${searchDate.toISOString().split('T')[0]}`);
+
+    const rawTrips = await this.findMatchingRawTrips({
+      ...legCriteria,
+      date: searchDate.toISOString().split('T')[0],
+    });
+
+    this.logger.log(`Found ${rawTrips.length} potential raw trips for ${searchDate.toDateString()}`);
 
     const formattedTrips = rawTrips
       .map((trip): TripSearchResultItem | null => {
@@ -211,11 +330,16 @@ export class TripsService {
       })
       .filter((trip): trip is TripSearchResultItem => trip !== null);
 
-    this.logger.log(
-      `Returning ${formattedTrips.length} formatted trips for leg.`,
-    );
-    return formattedTrips;
+    allTrips.push(...formattedTrips);
   }
+
+  this.logger.log(
+    `Returning ${allTrips.length} total formatted trips for onward/return leg.`,
+  );
+  return allTrips;
+}
+
+
   private async findMatchingRawTrips(
     legCriteria: TripLegSearchDto,
   ): Promise<ScheduledTrip[]> {
