@@ -255,7 +255,7 @@ private async findAndFormatTripsForLeg(
 
     const rawTrips = await this.findMatchingRawTrips({
       ...legCriteria,
-      date: searchDate.toISOString().split('T')[0],
+      date: searchDate.toISOString().split('T')[0], // only date part
     });
 
     this.logger.log(`Found ${rawTrips.length} potential raw trips for ${searchDate.toDateString()}`);
@@ -267,34 +267,31 @@ private async findAndFormatTripsForLeg(
           return null;
         }
 
-        const originCoords = legCriteria.origin;
-        const destCoords = legCriteria.destination;
-
         const pickupStop = this.findClosestStop(
           trip.route.stops,
-          originCoords,
+          legCriteria.origin,
           [StopType.PICKUP, StopType.PICKUP_DROPOFF],
         );
         const dropoffStop = this.findClosestStop(
           trip.route.stops,
-          destCoords,
+          legCriteria.destination,
           [StopType.DROPOFF, StopType.PICKUP_DROPOFF],
         );
 
-        if (
-          !pickupStop ||
-          !dropoffStop ||
-          pickupStop.sequence >= dropoffStop.sequence
-        ) {
+        if (!pickupStop || !dropoffStop || pickupStop.sequence >= dropoffStop.sequence) {
           return null;
         }
 
+        // Ensure departure/arrival are Dates
         const departure = new Date(trip.departureDateTime);
         const arrival = new Date(trip.estimatedArrivalDateTime);
+
+        // Adjust times based on searchDate if needed (for recurring trips)
+        departure.setFullYear(searchDate.getFullYear(), searchDate.getMonth(), searchDate.getDate());
+        arrival.setFullYear(searchDate.getFullYear(), searchDate.getMonth(), searchDate.getDate());
+
         const durationMins = differenceInMinutes(arrival, departure);
-        const hours = Math.floor(durationMins / 60);
-        const minutes = durationMins % 60;
-        const durationText = `${hours}h ${minutes}min`;
+        const durationText = `${Math.floor(durationMins / 60)}h ${durationMins % 60}min`;
 
         const allStops = [...trip.route.stops]
           .sort((a, b) => a.sequence - b.sequence)
@@ -314,15 +311,15 @@ private async findAndFormatTripsForLeg(
           destinationStopId: dropoffStop.id,
           pickupLocationName: pickupStop.name,
           destinationLocationName: dropoffStop.name,
-          departureDateTime: trip.departureDateTime.toISOString(),
-          estimatedArrivalDateTime: trip.estimatedArrivalDateTime.toISOString(),
-          durationText: durationText,
-          price: parseFloat(trip.pricePerSeat as any),
+          departureDateTime: departure.toISOString(),
+          estimatedArrivalDateTime: arrival.toISOString(),
+          durationText,
+          price: Number(trip.pricePerSeat),
           currency: trip.currency,
           availableSeats: trip.currentAvailableSeats,
           vehicleInfo: {
-            type: trip.vehicle.vehicleType.name,
-            model: trip.vehicle.modelName || 'N/A',
+            type: trip.vehicle.vehicleType?.name ?? "Unknown",
+            model: trip.vehicle.modelName || "N/A",
             registrationNumber: trip.vehicle.registrationNumber,
           },
           stops: allStops,
@@ -333,11 +330,10 @@ private async findAndFormatTripsForLeg(
     allTrips.push(...formattedTrips);
   }
 
-  this.logger.log(
-    `Returning ${allTrips.length} total formatted trips for onward/return leg.`,
-  );
+  this.logger.log(`Returning ${allTrips.length} total formatted trips for onward/return leg.`);
   return allTrips;
 }
+
 
 
   private async findMatchingRawTrips(
