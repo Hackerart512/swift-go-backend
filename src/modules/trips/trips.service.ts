@@ -240,6 +240,22 @@ export class TripsService {
   };
 }
 
+ // 🔹 Main Search (Onward + Return)
+  async searchTrips(searchBody: {
+    tripType: 'oneway' | 'roundtrip';
+    onward: TripLegSearchDto;
+    return?: TripLegSearchDto;
+  }): Promise<{ onward: ScheduledTrip[]; return: ScheduledTrip[] }> {
+    const onwardTrips = await this.findMatchingRawTrips(searchBody.onward);
+
+    let returnTrips: ScheduledTrip[] = [];
+    if (searchBody.tripType === 'roundtrip' && searchBody.return) {
+      returnTrips = await this.findMatchingRawTrips(searchBody.return);
+    }
+
+    return { onward: onwardTrips, return: returnTrips };
+  }
+  
 private async findAndFormatTripsForLeg(
   legCriteria: TripLegSearchDto,
 ): Promise<TripSearchResultItem[]> {
@@ -336,6 +352,76 @@ private async findAndFormatTripsForLeg(
 
 
 
+  // private async findMatchingRawTrips(
+  //   legCriteria: TripLegSearchDto,
+  // ): Promise<ScheduledTrip[]> {
+  //   const qb = this.tripRepository.createQueryBuilder('trip');
+
+  //   qb.innerJoinAndSelect('trip.route', 'route')
+  //     .innerJoinAndSelect('route.stops', 'route_stops')
+  //     .innerJoinAndSelect('trip.vehicle', 'vehicle')
+  //     .innerJoinAndSelect('vehicle.vehicleType', 'vehicleType')
+  //     .innerJoinAndSelect('trip.driver', 'driver');
+
+  //   qb.where('trip.isActive = :isActive', { isActive: true })
+  //     .andWhere('trip.status = :status', { status: 'scheduled' })
+  //     .andWhere('trip.currentAvailableSeats > 0');
+
+  //   if (legCriteria.date) {
+  //     const searchDate = parseISO(legCriteria.date);
+  //     const startDate = startOfDay(searchDate);
+  //     const endDate = endOfDay(searchDate);
+  //     qb.andWhere('trip.departureDateTime BETWEEN :startDate AND :endDate', {
+  //       startDate,
+  //       endDate,
+  //     });
+  //   } else {
+  //     qb.andWhere('trip.departureDateTime >= :now', { now: new Date() });
+  //   }
+
+  //   const origin = legCriteria.origin;
+  //   const destination = legCriteria.destination;
+  //   const searchRadiusInMeters = 5000;
+
+  //   qb.andWhere(
+  //     'trip.routeId IN ' +
+  //       qb
+  //         .subQuery()
+  //         .select('stops.routeId')
+  //         .from(RouteStop, 'stops')
+  //         .where(
+  //           'ST_DWithin(stops.location, ST_SetSRID(ST_MakePoint(:originLng, :originLat), 4326)::geography, :radius)',
+  //           {
+  //             originLat: origin.latitude,
+  //             originLng: origin.longitude,
+  //             radius: searchRadiusInMeters,
+  //           },
+  //         )
+  //         .andWhere(
+  //           'stops.routeId IN ' +
+  //             qb
+  //               .subQuery()
+  //               .select('dest_stops.routeId')
+  //               .from(RouteStop, 'dest_stops')
+  //               .where(
+  //                 'ST_DWithin(dest_stops.location, ST_SetSRID(ST_MakePoint(:destLng, :destLat), 4326)::geography, :radius)',
+  //                 {
+  //                   destLat: destination.latitude,
+  //                   destLng: destination.longitude,
+  //                   radius: searchRadiusInMeters,
+  //                 },
+  //               )
+  //               .getQuery(),
+  //         )
+  //         .getQuery(),
+  //   );
+
+  //   qb.orderBy('trip.departureDateTime', 'ASC');
+
+  //   return qb.getMany();
+  // }
+
+    // 🔹 Find trips matching a single leg (onward OR return)
   private async findMatchingRawTrips(
     legCriteria: TripLegSearchDto,
   ): Promise<ScheduledTrip[]> {
@@ -347,10 +433,12 @@ private async findAndFormatTripsForLeg(
       .innerJoinAndSelect('vehicle.vehicleType', 'vehicleType')
       .innerJoinAndSelect('trip.driver', 'driver');
 
+    // ✅ Only active & available trips
     qb.where('trip.isActive = :isActive', { isActive: true })
       .andWhere('trip.status = :status', { status: 'scheduled' })
       .andWhere('trip.currentAvailableSeats > 0');
 
+    // ✅ Filter by date (if given)
     if (legCriteria.date) {
       const searchDate = parseISO(legCriteria.date);
       const startDate = startOfDay(searchDate);
@@ -363,6 +451,16 @@ private async findAndFormatTripsForLeg(
       qb.andWhere('trip.departureDateTime >= :now', { now: new Date() });
     }
 
+    // ✅ Filter by AM / PM
+    if (legCriteria.timePeriod) {
+      if (legCriteria.timePeriod === 'AM') {
+        qb.andWhere(`EXTRACT(HOUR FROM trip.departureDateTime) BETWEEN 0 AND 11`);
+      } else if (legCriteria.timePeriod === 'PM') {
+        qb.andWhere(`EXTRACT(HOUR FROM trip.departureDateTime) BETWEEN 12 AND 23`);
+      }
+    }
+
+    // ✅ Location filters (origin + destination within radius)
     const origin = legCriteria.origin;
     const destination = legCriteria.destination;
     const searchRadiusInMeters = 5000;
