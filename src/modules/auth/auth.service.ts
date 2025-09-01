@@ -71,6 +71,7 @@ export class AuthService {
     // Then, proceed with sending the OTP as usual
     const otpResult = await this.smsOtpService.sendAndSaveOtp(phoneNumber, OtpPurpose.USER_LOGIN);
 
+
     if (!otpResult.success) {
       throw new InternalServerErrorException('Failed to send OTP.');
     }
