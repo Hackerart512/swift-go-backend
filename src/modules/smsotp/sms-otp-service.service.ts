@@ -37,72 +37,144 @@ export class SmsOtpService {
     }
   }
 
+  // async sendAndSaveOtp(
+  //   identifier: string,
+  //   purpose: OtpPurpose,
+  // ): Promise<{ success: boolean; message: string }> {
+  //   if (!identifier || !/^\+[1-9]\d{1,14}$/.test(identifier)) {
+  //     throw new BadRequestException(
+  //       'Invalid phone number format. Expected E.164 format.',
+  //     );
+  //   }
+
+  //   const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  //   const twilioPhoneNumber = this.configService.get<string>(
+  //     'TWILIO_PHONE_NUMBER',
+  //   );
+  //   const messageBody = `Your verification code is: ${otpCode}`;
+
+  //   // Invalidate previous OTPs for the same purpose
+  //   await this.otpRepository.update(
+  //     { identifier, purpose, isUsed: false },
+  //     { isUsed: true },
+  //   );
+
+  //   // Save the new OTP
+  //   const expiryTime = add(new Date(), { minutes: 5 }); // 5 minute expiry
+  //   const newOtp = this.otpRepository.create({
+  //     identifier,
+  //     code: otpCode,
+  //     purpose,
+  //     expiresAt: expiryTime,
+  //   });
+  //   await this.otpRepository.save(newOtp);
+
+  //   // If mock OTP is enabled, we can skip sending the actual SMS to avoid charges/limits
+  //   const isMockEnabled =
+  //     this.configService.get<string>('MOCK_OTP_ENABLED') === 'true';
+  //   if (isMockEnabled) {
+  //     this.logger.warn(
+  //       `Mock OTP is enabled. Skipping actual SMS send to ${identifier}. The real OTP is ${otpCode}`,
+  //     );
+  //     return {
+  //       success: true,
+  //       message: `OTP has been generated for ${identifier} (mock mode).`,
+  //     };
+  //   }
+
+  //   // This block only runs if mock OTP is NOT enabled
+  //   try {
+  //     if (!this.twilioClient) {
+  //       throw new InternalServerErrorException(
+  //         'Twilio client is not initialized. Cannot send SMS.',
+  //       );
+  //     }
+  //     await this.twilioClient.messages.create({
+  //       body: messageBody,
+  //       from: twilioPhoneNumber,
+  //       to: identifier,
+  //     });
+  //     this.logger.log(
+  //       `Successfully sent OTP to ${identifier} for purpose ${purpose}`,
+  //     );
+  //     return { success: true, message: `OTP has been sent to ${identifier}.` };
+  //   } catch (error) {
+  //     this.logger.error('Failed to send SMS via Twilio:', error);
+  //     throw new InternalServerErrorException('Failed to send OTP message.');
+  //   }
+  // }
+
   async sendAndSaveOtp(
-    identifier: string,
-    purpose: OtpPurpose,
-  ): Promise<{ success: boolean; message: string }> {
-    if (!identifier || !/^\+[1-9]\d{1,14}$/.test(identifier)) {
-      throw new BadRequestException(
-        'Invalid phone number format. Expected E.164 format.',
-      );
-    }
-
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const twilioPhoneNumber = this.configService.get<string>(
-      'TWILIO_PHONE_NUMBER',
+  identifier: string,
+  purpose: OtpPurpose,
+): Promise<{ success: boolean; message: string; code?: string }> {
+  if (!identifier || !/^\+[1-9]\d{1,14}$/.test(identifier)) {
+    throw new BadRequestException(
+      'Invalid phone number format. Expected E.164 format.',
     );
-    const messageBody = `Your verification code is: ${otpCode}`;
-
-    // Invalidate previous OTPs for the same purpose
-    await this.otpRepository.update(
-      { identifier, purpose, isUsed: false },
-      { isUsed: true },
-    );
-
-    // Save the new OTP
-    const expiryTime = add(new Date(), { minutes: 5 }); // 5 minute expiry
-    const newOtp = this.otpRepository.create({
-      identifier,
-      code: otpCode,
-      purpose,
-      expiresAt: expiryTime,
-    });
-    await this.otpRepository.save(newOtp);
-
-    // If mock OTP is enabled, we can skip sending the actual SMS to avoid charges/limits
-    const isMockEnabled =
-      this.configService.get<string>('MOCK_OTP_ENABLED') === 'true';
-    if (isMockEnabled) {
-      this.logger.warn(
-        `Mock OTP is enabled. Skipping actual SMS send to ${identifier}. The real OTP is ${otpCode}`,
-      );
-      return {
-        success: true,
-        message: `OTP has been generated for ${identifier} (mock mode).`,
-      };
-    }
-
-    // This block only runs if mock OTP is NOT enabled
-    try {
-      if (!this.twilioClient) {
-        throw new InternalServerErrorException(
-          'Twilio client is not initialized. Cannot send SMS.',
-        );
-      }
-      await this.twilioClient.messages.create({
-        body: messageBody,
-        from: twilioPhoneNumber,
-        to: identifier,
-      });
-      this.logger.log(
-        `Successfully sent OTP to ${identifier} for purpose ${purpose}`,
-      );
-      return { success: true, message: `OTP has been sent to ${identifier}.` };
-    } catch (error) {
-      this.logger.error('Failed to send SMS via Twilio:', error);
-      throw new InternalServerErrorException('Failed to send OTP message.');
-    }
   }
+
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const twilioPhoneNumber =
+    this.configService.get<string>('TWILIO_PHONE_NUMBER');
+  const messageBody = `Your verification code is: ${otpCode}`;
+
+  // Invalidate previous OTPs
+  await this.otpRepository.update(
+    { identifier, purpose, isUsed: false },
+    { isUsed: true },
+  );
+
+  // Save new OTP
+  const expiryTime = add(new Date(), { minutes: 5 });
+  const newOtp = this.otpRepository.create({
+    identifier,
+    code: otpCode,
+    purpose,
+    expiresAt: expiryTime,
+  });
+  await this.otpRepository.save(newOtp);
+
+  const isMockEnabled =
+    this.configService.get<string>('MOCK_OTP_ENABLED') === 'true';
+
+  if (isMockEnabled) {
+    this.logger.warn(
+      `Mock OTP is enabled. Skipping actual SMS send to ${identifier}. The real OTP is ${otpCode}`,
+    );
+    return {
+      success: true,
+      message: `OTP has been generated for ${identifier} (mock mode).`,
+      code: otpCode, // ✅ return code in mock mode
+    };
+  }
+
+  try {
+    if (!this.twilioClient) {
+      throw new InternalServerErrorException(
+        'Twilio client is not initialized. Cannot send SMS.',
+      );
+    }
+    await this.twilioClient.messages.create({
+      body: messageBody,
+      from: twilioPhoneNumber,
+      to: identifier,
+    });
+    this.logger.log(
+      `Successfully sent OTP to ${identifier} for purpose ${purpose}`,
+    );
+    return {
+      success: true,
+      message: `OTP has been sent to ${identifier}.`,
+      // ⚠️ Do NOT return code here in production for security
+    };
+  } catch (error) {
+    this.logger.error('Failed to send SMS via Twilio:', error);
+    throw new InternalServerErrorException('Failed to send OTP message.');
+  }
+}
+
+
 
   async verifyOtp(
     identifier: string,

@@ -46,38 +46,84 @@ export class AuthService {
   // ===== USER (PASSENGER) AUTHENTICATION FLOW =====
   // ====================================================================
 
-  async requestPhoneOtp(requestPhoneOtpDto: RequestPhoneOtpDto): Promise<{ message: string }> {
-    // ++ MODIFICATION START ++
-    const { phoneNumber, fcmToken } = requestPhoneOtpDto;
+  // async requestPhoneOtp(requestPhoneOtpDto: RequestPhoneOtpDto): Promise<{ message: string }> {
+  //   // ++ MODIFICATION START ++
+  //   const { phoneNumber, fcmToken } = requestPhoneOtpDto;
 
-    // First, handle the fcmToken if it exists
-    if (fcmToken) {
-      this.logger.log(`FCM token received for phone ${phoneNumber}. Attempting to save.`);
-      try {
-        const user = await this.usersService.findByMobileNumber(phoneNumber);
-        if (user) {
-          // Update the existing user's token
-          await this.usersService.updateFcmToken(user.id, fcmToken);
-          this.logger.log(`Successfully updated FCM token for existing user ${user.id}.`);
-        } else {
-          this.logger.log(`User with phone ${phoneNumber} not found yet. FCM token will be handled upon registration.`);
-        }
-      } catch (error) {
-        // Log the error but don't block the OTP flow
-        this.logger.error(`Failed to update FCM token for ${phoneNumber}`, error.stack);
-      }
-    }
+  //   // First, handle the fcmToken if it exists
+  //   if (fcmToken) {
+  //     this.logger.log(`FCM token received for phone ${phoneNumber}. Attempting to save.`);
+  //     try {
+  //       const user = await this.usersService.findByMobileNumber(phoneNumber);
+  //       if (user) {
+  //         // Update the existing user's token
+  //         await this.usersService.updateFcmToken(user.id, fcmToken);
+  //         this.logger.log(`Successfully updated FCM token for existing user ${user.id}.`);
+  //       } else {
+  //         this.logger.log(`User with phone ${phoneNumber} not found yet. FCM token will be handled upon registration.`);
+  //       }
+  //     } catch (error) {
+  //       // Log the error but don't block the OTP flow
+  //       this.logger.error(`Failed to update FCM token for ${phoneNumber}`, error.stack);
+  //     }
+  //   }
     
-    // Then, proceed with sending the OTP as usual
-    const otpResult = await this.smsOtpService.sendAndSaveOtp(phoneNumber, OtpPurpose.USER_LOGIN);
+  //   // Then, proceed with sending the OTP as usual
+  //   const otpResult = await this.smsOtpService.sendAndSaveOtp(phoneNumber, OtpPurpose.USER_LOGIN);
 
+  //   if (!otpResult.success) {
+  //     throw new InternalServerErrorException('Failed to send OTP.');
+  //   }
+  //   return { message: otpResult.message };
+  //   // ++ MODIFICATION END ++
+  // }
 
-    if (!otpResult.success) {
-      throw new InternalServerErrorException('Failed to send OTP.');
+  async requestPhoneOtp(
+  requestPhoneOtpDto: RequestPhoneOtpDto,
+): Promise<{ message: string; code?: string }> {
+  const { phoneNumber, fcmToken } = requestPhoneOtpDto;
+
+  // Handle the fcmToken if provided
+  if (fcmToken) {
+    this.logger.log(
+      `FCM token received for phone ${phoneNumber}. Attempting to save.`,
+    );
+    try {
+      const user = await this.usersService.findByMobileNumber(phoneNumber);
+      if (user) {
+        await this.usersService.updateFcmToken(user.id, fcmToken);
+        this.logger.log(
+          `Successfully updated FCM token for existing user ${user.id}.`,
+        );
+      } else {
+        this.logger.log(
+          `User with phone ${phoneNumber} not found yet. FCM token will be handled upon registration.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to update FCM token for ${phoneNumber}`,
+        error.stack,
+      );
     }
-    return { message: otpResult.message };
-    // ++ MODIFICATION END ++
   }
+
+  // Send and save OTP
+  const otpResult = await this.smsOtpService.sendAndSaveOtp(
+    phoneNumber,
+    OtpPurpose.USER_LOGIN,
+  );
+
+  if (!otpResult.success) {
+    throw new InternalServerErrorException('Failed to send OTP.');
+  }
+
+  // ✅ Return both message and code (code will only be present in dev/mock mode for safety)
+  return {
+    message: otpResult.message,
+    code: otpResult.code, // add this (your service must return code too)
+  };
+}
 
 
   async verifyPhoneOtp(verifyDto: VerifyPhoneOtpDto): Promise<{
