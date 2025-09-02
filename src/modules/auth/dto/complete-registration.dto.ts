@@ -59,7 +59,7 @@ export class CompleteRegistrationDto {
 
   @IsNotEmpty() // Password should be required to "Register now"
   @IsString()
-  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  // @MinLength(8, { message: 'Password must be at least 8 characters long' })
   // Add other password complexity rules if desired (e.g., @Matches for uppercase, number, symbol)
   password: string;
 }
