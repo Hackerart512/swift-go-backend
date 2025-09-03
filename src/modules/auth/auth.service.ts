@@ -187,13 +187,13 @@ async verifyUid(dto: VerifyUidDto): Promise<{
 }> {
   const { uid, email, fullName, photoUrl } = dto;
 
-  console.log('🔎 Incoming DTO:', dto);
+  console.log('Incoming DTO:', dto);
 
   let user: User | undefined = await this.usersService.findByUid(uid);
   let isNewUser = false;
 
   if (!user) {
-    console.log('⚠️ No user with UID, checking by email...');
+    console.log('No user with UID, checking by email...');
     if (email) {
       user = await this.usersService.findByEmail(email);
     }
@@ -206,7 +206,7 @@ async verifyUid(dto: VerifyUidDto): Promise<{
       user.profilePhotoUrl = user.profilePhotoUrl || photoUrl;
       await this.usersService.saveUser(user);
     } else {
-      console.log('🆕 Creating new user...');
+      console.log('Creating new user...');
       isNewUser = true;
       user = await this.usersService.createUser({
         uid,
@@ -221,7 +221,7 @@ async verifyUid(dto: VerifyUidDto): Promise<{
   }
 
   if (!user) {
-    console.error('❌ Still no user after create/save!');
+    console.error('Still no user after create/save!');
     throw new InternalServerErrorException(
       'Could not create or fetch user profile.',
     );
@@ -232,6 +232,7 @@ async verifyUid(dto: VerifyUidDto): Promise<{
     uid: user.uid,
     email: user.email,
     purpose: isNewUser ? 'complete-registration' : 'login',
+    role: 'user',
   };
 
   const accessToken = this.jwtService.sign(payload);
