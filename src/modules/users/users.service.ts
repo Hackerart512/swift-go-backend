@@ -180,6 +180,13 @@ export class UsersService {
     );
   }
 
+  async findByUid(uid: string): Promise<User | undefined> {
+    if (!uid) return undefined;
+    const user = await this.usersRepository.findOne({ where: { uid } });
+    return user ?? undefined; // normalize null → undefined
+  }
+
+
   async createUser(userData: Partial<User>): Promise<User> {
     if (userData.email) {
       const existing = await this.findByEmail(userData.email);
@@ -532,8 +539,9 @@ export class UsersService {
         password: true,
       },
     });
-    return user ?? undefined;
+    return user || undefined;
   }
+
 
   async updateUser(id: string, update: Partial<User>): Promise<User> {
     await this.usersRepository.update(id, update);

@@ -27,6 +27,7 @@ import { CompleteRegistrationDto } from './dto/complete-registration.dto';
 import { ConfigService } from '@nestjs/config';
 import { VerifyKycOtpDto } from './dto/verify-kyc-otp.dto';
 import { OtpPurpose } from '../smsotp/entities/otp.entity';
+import { VerifyUidDto  } from './dto/verify-uid-dto';
 
 @Injectable()
 export class AuthService {
@@ -178,6 +179,78 @@ export class AuthService {
     };
   }
   
+async verifyUid(dto: VerifyUidDto): Promise<{
+  message: string;
+  accessToken: string;
+  user: Partial<User>;
+  isNewUser: boolean;
+}> {
+  const { uid, email, fullName, photoUrl } = dto;
+
+  console.log('🔎 Incoming DTO:', dto);
+
+  let user: User | undefined = await this.usersService.findByUid(uid);
+  let isNewUser = false;
+
+  if (!user) {
+    console.log('⚠️ No user with UID, checking by email...');
+    if (email) {
+      user = await this.usersService.findByEmail(email);
+    }
+
+
+    if (user) {
+      console.log('✅ Found user by email, updating UID...');
+      user.uid = uid;
+      user.fullName = user.fullName || fullName;
+      user.profilePhotoUrl = user.profilePhotoUrl || photoUrl;
+      await this.usersService.saveUser(user);
+    } else {
+      console.log('🆕 Creating new user...');
+      isNewUser = true;
+      user = await this.usersService.createUser({
+        uid,
+        email,
+        fullName,
+        profilePhotoUrl: photoUrl,
+        phoneVerificationStatus: PhoneVerificationStatus.VERIFIED,
+        kycStatus: UserKycStatus.PENDING,
+        isActive: true,
+      });
+    }
+  }
+
+  if (!user) {
+    console.error('❌ Still no user after create/save!');
+    throw new InternalServerErrorException(
+      'Could not create or fetch user profile.',
+    );
+  }
+
+  const payload = {
+    sub: user.id,
+    uid: user.uid,
+    email: user.email,
+    purpose: isNewUser ? 'complete-registration' : 'login',
+  };
+
+  const accessToken = this.jwtService.sign(payload);
+
+  // remove password from response safely
+  const { password, ...result } = user;
+
+  return {
+    message: isNewUser
+      ? 'New user created successfully.'
+      : 'User logged in successfully.',
+    accessToken,
+    user: result,
+    isNewUser,
+  };
+}
+
+
+
   async completeFullRegistration(
     userId: string,
     registrationDetails: CompleteRegistrationDto,

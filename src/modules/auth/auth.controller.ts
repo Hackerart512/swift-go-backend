@@ -21,6 +21,7 @@ import { InitiateKycDto } from './dto/initiate-kyc.dto';
 import { VerifyKycOtpDto as VerifyAadhaarKycOtpDto } from './dto/verify-kyc-otp.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { UserJwtAuthGuard } from './guards/user-jwt-auth.guard';
+import { VerifyUidDto } from './dto/verify-uid-dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -28,6 +29,15 @@ import { UserJwtAuthGuard } from './guards/user-jwt-auth.guard';
 // --- THIS IS THE CRITICAL FIX: The 'export' keyword must be here ---
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+ 
+  @Post('uid/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify user by UID and Email (Google/Provider login)' })
+  async verifyUid(@Body() verifyUidDto: VerifyUidDto) {
+    return this.authService.verifyUid(verifyUidDto);
+  }
+
 
   @Post('phone/request-otp')
   @HttpCode(HttpStatus.OK)

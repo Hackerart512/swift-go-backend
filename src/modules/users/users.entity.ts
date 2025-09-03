@@ -50,6 +50,10 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'varchar', length: 50, unique: true, nullable: true })
+  uid?: string;
+
+
   @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
   email?: string;
 
